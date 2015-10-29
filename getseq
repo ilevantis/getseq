@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+fasta=''
+idfile=''
+mode=d
+intype='stdin'
+searchstr=''
+
+while :; do
+    case $1 in
+        -h|--help)   # display a synopsis, then exit.
+			printf "Usage: getseq FILE1 [STRING [OPTIONS [FILE2]]]
+	
+Prints the entries from a multiFASTA file which contain a string.
+
+FILE1              A multifasta file.
+
+STRING             The string used to search the FASTA entries in FILE1.
+
+-d (--description) Searches the description line of each fasta entry for the 
+                   inputted string(s). This is the default mode if no option is 
+                   given.
+
+-s (--sequence)    Searches the sequence of each fasta entry for the 
+                   inputted string(s).
+
+-f (--fileinput)   Takes a file (FILE2) as an option argument. Each line of
+                   FILE2 will be used as a search string.
+
+If no STRING is given or if -f is not used, stdin is read to provide the search strings.\n"
+            exit
+            ;;
+
+        -d|--description)
+            mode=d
+            ;;
+
+        -s|--sequence)
+            mode=s
+            ;;
+
+        -f|--fileinput)
+            if [ -n "$2" ]; then
+                if [ -f "$2" ]; then
+                    idfile=$2
+                    intype='file'
+                    shift
+                else
+                    printf "ERROR: $1 requires a valid file as an argument.\n" >&2
+                    exit 1
+                fi
+            else
+                printf "ERROR: $1 requires a non-empty option argument.\n" >&2
+                exit 1
+            fi
+            ;;
+
+        -?*)
+            printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
+            ;;
+
+        *)    # Default case: If a file: ingest it, if no more options: break out of the loop.
+            if [[ $# == 0 ]]; then
+                break   
+            else
+                if [ -f $1 ]; then
+                    if [ ! -z $fasta ]; then
+                        printf 'Error: more than one file parameter.\n' >&2
+                        exit 1
+                    else
+                        fasta=$1
+                    fi
+
+                else
+                    if [ ! -z $searchstr ]; then
+                        printf 'Error: more than one string parameter.\n' >&2
+                        exit 1
+                    else
+                        searchstr=$1
+                        intype='string'
+                    fi
+                fi 
+            fi
+            ;;
+    esac
+    shift
+done
+
+searchdesc() {
+	awk '
+	BEGIN {RS=">"; FS="\n"}
+	{
+		if ( $1 ~ /'$1'/ ) {
+			print ">" $0
+		}
+	}
+	' $2 | sed '/^$/d'
+}
+
+searchseq() {
+    awk '
+	BEGIN {RS=">"; FS="\n"}
+	{
+		rec = $0
+		seq =""
+		for (i=2; i<=NF;i++) {
+			seq = seq $i
+		}
+		if (seq ~ /'$1'/) {
+			print ">" rec
+		}
+	}
+	' $2 | sed '/^$/d'
+}
+
+
+
+if [[ $intype == 'stdin' ]]; then
+
+	if [[ $mode == 'd' ]]; then
+		while read -r line; do
+			searchdesc $line $fasta 
+		done
+
+	elif [[ $mode == 's' ]]; then
+		while read -r line; do
+			searchseq $line $fasta
+		done
+
+	fi
+
+elif [[ $intype == 'file' ]]; then
+
+	if [[ $mode == 'd' ]]; then
+		while read -r line; do
+			searchdesc $line $fasta
+		done < $idfile
+
+	elif [[ $mode == 's' ]]; then
+		while read -r line; do
+			searchseq $line $fasta
+		done < $idfile
+
+	fi
+
+elif [[ $intype == 'string' ]]; then
+
+	if [[ $mode == 'd' ]]; then
+		searchdesc $searchstr $fasta
+
+	elif [[ $mode == 's' ]]; then
+		searchseq $searchstr $fasta
+
+	fi
+
+fi
+
+exit
