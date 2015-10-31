@@ -4,6 +4,7 @@ idfile=''
 mode=d
 intype='stdin'
 searchstr=''
+linewidth='70'
 
 while :; do
     case $1 in
@@ -26,6 +27,10 @@ STRING             The string used to search the FASTA entries in FILE1.
 -f (--fileinput)   Takes a file (FILE2) as an option argument. Each line of
                    FILE2 will be used as a search string.
 
+-w (--linewidth)   Takes an integer number as an option argument. Sets the 
+                   width of sequence lines in the output fasta entries. Default 
+                   value is 70.
+
 If no STRING is given or if -f is not used, stdin is read to provide the search strings.\n"
             exit
             ;;
@@ -46,6 +51,21 @@ If no STRING is given or if -f is not used, stdin is read to provide the search 
                     shift
                 else
                     printf "ERROR: $1 requires a valid file as an argument.\n" >&2
+                    exit 1
+                fi
+            else
+                printf "ERROR: $1 requires a non-empty option argument.\n" >&2
+                exit 1
+            fi
+            ;;
+
+        -w|--linewidth)
+            if [ -n "$2" ]; then
+                if [[ "$2" =~ ^[0-9]+$ ]]; then
+                    linewidth=$2
+                    shift
+                else
+                    printf "ERROR: $1 requires a positive integer as an argument.\n" >&2
                     exit 1
                 fi
             else
@@ -86,30 +106,63 @@ If no STRING is given or if -f is not used, stdin is read to provide the search 
 done
 
 searchdesc() {
-	awk '
-	BEGIN {RS=">"; FS="\n"}
-	{
-		if ( $1 ~ /'$1'/ ) {
-			print ">" $0
+awk '
+BEGIN {RS=">"; FS="\n"; width='$3'}
+{
+	if (ARGIND == 1){
+		seq =""
+		for (i=2;i<=NF;i++) {
+            seq = seq $i
 		}
+		fasta_arr[$1]=seq
 	}
-	' $2 | sed '/^$/d'
+}
+ENDFILE{ if(ARGIND == 1){RS="\n";FS="|"}}
+{
+	if (ARGIND > 1){
+		for (desc in fasta_arr) {
+			if (desc ~ $0) {
+				print ">" desc
+				while(length(fasta_arr[desc]) > width) {
+					print substr(fasta_arr[desc],1,width)
+					fasta_arr[desc]= substr(fasta_arr[desc],width+1,length(fasta_arr[desc]))
+				}
+				print fasta_arr[desc]
+			}
+        }
+	}
+}
+' $1 $2
 }
 
 searchseq() {
-    awk '
-	BEGIN {RS=">"; FS="\n"}
-	{
-		rec = $0
-		seq =""
-		for (i=2; i<=NF;i++) {
-			seq = seq $i
-		}
-		if (seq ~ /'$1'/) {
-			print ">" rec
-		}
-	}
-	' $2 | sed '/^$/d'
+awk '
+BEGIN {RS=">"; FS="\n"; width='$3'}
+{
+    if (ARGIND == 1){
+        seq =""
+        for (i=2;i<=NF;i++) {
+            seq = seq $i
+        }
+        fasta_arr[$1]=seq
+    }
+}
+ENDFILE{ if(ARGIND == 1){RS="\n";FS="|"}}
+{
+    if (ARGIND > 1){
+        for (desc in fasta_arr) {
+            if (fasta_arr[desc] ~ $0) {
+                print ">" desc
+                while(length(fasta_arr[desc]) > width) {
+                    print substr(fasta_arr[desc],1,width)
+                    fasta_arr[desc]= substr(fasta_arr[desc],width+1,length(fasta_arr[desc]))
+                }
+                print fasta_arr[desc]
+            }
+        }
+    }
+}
+' $1 $2
 }
 
 
@@ -117,38 +170,30 @@ searchseq() {
 if [[ $intype == 'stdin' ]]; then
 
 	if [[ $mode == 'd' ]]; then
-		while read -r line; do
-			searchdesc $line $fasta 
-		done
+		searchdesc $fasta '-' $linewidth
 
 	elif [[ $mode == 's' ]]; then
-		while read -r line; do
-			searchseq $line $fasta
-		done
+		searchseq $fasta '-' $linewidth
 
 	fi
 
 elif [[ $intype == 'file' ]]; then
 
 	if [[ $mode == 'd' ]]; then
-		while read -r line; do
-			searchdesc $line $fasta
-		done < $idfile
+		searchdesc $fasta $idfile $linewidth
 
 	elif [[ $mode == 's' ]]; then
-		while read -r line; do
-			searchseq $line $fasta
-		done < $idfile
+		searchseq $fasta $idfile $linewidth
 
 	fi
 
 elif [[ $intype == 'string' ]]; then
 
 	if [[ $mode == 'd' ]]; then
-		searchdesc $searchstr $fasta
+		echo $searchstr | searchdesc $fasta '-' $linewidth
 
 	elif [[ $mode == 's' ]]; then
-		searchseq $searchstr $fasta
+		echo $searchstr | searchseq $fasta '-' $linewidth
 
 	fi
 
