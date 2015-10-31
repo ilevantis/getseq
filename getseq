@@ -105,8 +105,9 @@ If no STRING is given or if -f is not used, stdin is read to provide the search 
     shift
 done
 
+
 searchdesc() {
-awk '
+gawk '
 BEGIN {RS=">"; FS="\n"; width='$3'}
 {
 	if (ARGIND == 1){
@@ -135,8 +136,9 @@ ENDFILE{ if(ARGIND == 1){RS="\n";FS="|"}}
 ' $1 $2
 }
 
+
 searchseq() {
-awk '
+gawk '
 BEGIN {RS=">"; FS="\n"; width='$3'}
 {
     if (ARGIND == 1){
@@ -164,7 +166,6 @@ ENDFILE{ if(ARGIND == 1){RS="\n";FS="|"}}
 }
 ' $1 $2
 }
-
 
 
 if [[ $intype == 'stdin' ]]; then
