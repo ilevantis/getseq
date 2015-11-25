@@ -7,7 +7,7 @@ searchstr=''
 linewidth='70'
 
 while :; do
-    case $1 in
+    case "$1" in
         -h|--help)   # display a synopsis, then exit.
 			printf "Usage: getseq FILE1 [STRING [OPTIONS [FILE2]]]
 	
@@ -46,7 +46,7 @@ If no STRING is given or if -f is not used, stdin is read to provide the search 
         -f|--fileinput)
             if [ -n "$2" ]; then
                 if [ -f "$2" ]; then
-                    idfile=$2
+                    idfile="$2"
                     intype='file'
                     shift
                 else
@@ -62,7 +62,7 @@ If no STRING is given or if -f is not used, stdin is read to provide the search 
         -w|--linewidth)
             if [ -n "$2" ]; then
                 if [[ "$2" =~ ^[0-9]+$ ]]; then
-                    linewidth=$2
+                    linewidth="$2"
                     shift
                 else
                     printf "ERROR: $1 requires a positive integer as an argument.\n" >&2
@@ -82,20 +82,20 @@ If no STRING is given or if -f is not used, stdin is read to provide the search 
             if [[ $# == 0 ]]; then
                 break   
             else
-                if [ -f $1 ]; then
-                    if [ ! -z $fasta ]; then
+                if [ -f "$1" ]; then
+                    if [ ! -z "$fasta" ]; then
                         printf 'Error: more than one file parameter.\n' >&2
                         exit 1
                     else
-                        fasta=$1
+                        fasta="$1"
                     fi
 
                 else
-                    if [ ! -z $searchstr ]; then
+                    if [ ! -z "$searchstr" ]; then
                         printf 'Error: more than one string parameter.\n' >&2
                         exit 1
                     else
-                        searchstr=$1
+                        searchstr="$1"
                         intype='string'
                     fi
                 fi 
@@ -133,7 +133,7 @@ ENDFILE{ if(ARGIND == 1){RS="\n";FS="|"}}
         }
 	}
 }
-' $1 $2
+' "$1" "$2"
 }
 
 
@@ -164,37 +164,37 @@ ENDFILE{ if(ARGIND == 1){RS="\n";FS="|"}}
         }
     }
 }
-' $1 $2
+' "$1" "$2"
 }
 
 
-if [[ $intype == 'stdin' ]]; then
+if [[ "$intype" == 'stdin' ]]; then
 
-	if [[ $mode == 'd' ]]; then
-		searchdesc $fasta '-' $linewidth
+	if [[ "$mode" == 'd' ]]; then
+		searchdesc "$fasta" '-' "$linewidth"
 
-	elif [[ $mode == 's' ]]; then
-		searchseq $fasta '-' $linewidth
-
-	fi
-
-elif [[ $intype == 'file' ]]; then
-
-	if [[ $mode == 'd' ]]; then
-		searchdesc $fasta $idfile $linewidth
-
-	elif [[ $mode == 's' ]]; then
-		searchseq $fasta $idfile $linewidth
+	elif [[ "$mode" == 's' ]]; then
+		searchseq "$fasta" '-' "$linewidth"
 
 	fi
 
-elif [[ $intype == 'string' ]]; then
+elif [[ "$intype" == 'file' ]]; then
 
-	if [[ $mode == 'd' ]]; then
-		echo $searchstr | searchdesc $fasta '-' $linewidth
+	if [[ "$mode" == 'd' ]]; then
+		searchdesc "$fasta" "$idfile" "$linewidth"
 
-	elif [[ $mode == 's' ]]; then
-		echo $searchstr | searchseq $fasta '-' $linewidth
+	elif [[ "$mode" == 's' ]]; then
+		searchseq "$fasta" "$idfile" "$linewidth"
+
+	fi
+
+elif [[ "$intype" == 'string' ]]; then
+
+	if [[ "$mode" == 'd' ]]; then
+		echo "$searchstr" | searchdesc "$fasta" '-' "$linewidth"
+
+	elif [[ "$mode" == 's' ]]; then
+		echo "$searchstr" | searchseq "$fasta" '-' "$linewidth"
 
 	fi
 
